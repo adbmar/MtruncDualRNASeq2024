@@ -8,6 +8,7 @@ The snakemake directory contains the script needed to download data from the Seq
 - The env_ files contain the enrivonments needed to run snakemake
 - rawReads files should be downloaded from SRA from the following BioProject
 - All other directories will be populated as the snakemake pipeline (snakemake.smk) is run and final data will be put into the counts directory
+- The snakemake pipeline does not include making bowtie2 genome indices or HISAT2 genome indices. So indices must be made and put into the snakemake directory first. See or edit snakemake parameters for proper naming of indices.
 
 The DGE directory contains all the scripts and data necessary to take the output of the snakemake pipeline, and perform the various differential expression and Gene Ontology overrepresentation analyses outlined in the publication. Within the DGE directory:
 - samples.csv file contains sample information necessary to perform analyses in the PrimaryAnalysis.R script.
