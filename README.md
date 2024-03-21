@@ -3,7 +3,8 @@ Data and code repository for dual RNAseq project with Medicago truncatula
 
 This repository holds scripts and data associated with the study found at ____.
 
-The snakemake directory contains the script needed to download data from the Sequence Read Archive and the snakemake script to perform the bioinformatic analyses outlined in the publication.
+The snakemake directory contains the script needed to process data that must be downloaded from the Sequence Read Archive. The script is a snakemake script that performs the bioinformatic analyses outlined in the publication.
+- Download the data associated with BioProject: PRJNA1090526 on the Sequence Read Archive and put these files in a directory within snakemake entitled "rawReads"
 - The adapter directory contains the adapter sequences needed for Trimmomatic
 - The env_ files contain the enrivonments needed to run snakemake
 - rawReads files should be downloaded from SRA from the following BioProject
