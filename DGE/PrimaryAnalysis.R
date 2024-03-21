@@ -36,7 +36,7 @@ library("tidyverse")
 # Edit the file path of dir_main to be the folder containing this script.
 # The data should be in this main directory as specified in the above Data
 # Requirements section in the heading of this script
-dir_main <- file.path("~", "Desktop", "DGE_12")
+dir_main <- file.path("~", "Desktop", "DGE")
 ################################################################################
 
 dir_medic <- file.path(dir_main, "Medicago")
