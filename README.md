@@ -4,6 +4,10 @@ Data and code repository for dual RNAseq project with Medicago truncatula
 This repository holds scripts and data associated with the study found at ____.
 
 The snakemake directory contains the script needed to download data from the Sequence Read Archive and the snakemake script to perform the bioinformatic analyses outlined in the publication.
+- The adapter directory contains the adapter sequences needed for Trimmomatic
+- The env_ files contain the enrivonments needed to run snakemake
+- rawReads files should be downloaded from SRA from the following BioProject
+- All other directories will be populated as the snakemake pipeline (snakemake.smk) is run and final data will be put into the counts directory
 
 The DGE directory contains all the scripts and data necessary to take the output of the snakemake pipeline, and perform the various differential expression and Gene Ontology overrepresentation analyses outlined in the publication. Within the DGE directory:
 - samples.csv file contains sample information necessary to perform analyses in the PrimaryAnalysis.R script.
