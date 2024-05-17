@@ -1,0 +1,4 @@
+/Users/cychang/Desktop/lab/ncbi-ensifer/data/genomes/USDA1021.fasta	/Users/cychang/Desktop/lab/ncbi-ensifer/data/genomes/USDA1021.fasta	100	2377	2380
+/Users/cychang/Desktop/lab/ncbi-ensifer/data/genomes/USDA1021.fasta	/Users/cychang/Desktop/lab/ncbi-ensifer/data/genomes/WSM1022.fasta	98.2729	2010	2380
+/Users/cychang/Desktop/lab/ncbi-ensifer/data/genomes/WSM1022.fasta	/Users/cychang/Desktop/lab/ncbi-ensifer/data/genomes/WSM1022.fasta	100	2246	2249
+/Users/cychang/Desktop/lab/ncbi-ensifer/data/genomes/WSM1022.fasta	/Users/cychang/Desktop/lab/ncbi-ensifer/data/genomes/USDA1021.fasta	98.3014	2003	2249
