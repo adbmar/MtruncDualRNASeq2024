@@ -1,2 +1,0 @@
-/Users/cychang/Desktop/lab/ncbi-ensifer/data/genomes/USDA1021.fasta
-/Users/cychang/Desktop/lab/ncbi-ensifer/data/genomes/WSM1022.fasta
