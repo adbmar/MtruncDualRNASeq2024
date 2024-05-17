@@ -1,0 +1,2 @@
+/Users/cychang/Desktop/lab/ncbi-ensifer/data/gffs/USDA1021.gff
+/Users/cychang/Desktop/lab/ncbi-ensifer/data/gffs/WSM1022.gff

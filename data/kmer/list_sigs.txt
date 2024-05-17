@@ -1,0 +1,2 @@
+/Users/cychang/Desktop/lab/ncbi-ensifer/data/kmer/USDA1021.sig
+/Users/cychang/Desktop/lab/ncbi-ensifer/data/kmer/WSM1022.sig
