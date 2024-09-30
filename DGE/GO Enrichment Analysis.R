@@ -119,7 +119,7 @@ make_db_with_subset(list = gl_med_exp_nodp_and_root, prefix = "noro")
 make_db_with_subset(list = gl_med_exp_nodp_or_root, prefix = "noroi")
 
 
-
+setwd(dir_enrichdb)
 library(org.Mtruncatula.eg.db)
 library(org.Mtruncatulagall.eg.db)
 library(org.Mtruncatulanodp.eg.db)

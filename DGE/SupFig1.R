@@ -5,6 +5,24 @@ library(ggpubr)
 library(ggpp)
 
 
+
+gall_color <- "indianred1"
+nodule_color <- "dodgerblue"
+gall_and_nodule_color <- "mediumpurple1"
+USDA1021_color <- "royalblue4"
+WSM1022_color <- "steelblue1"
+USDA1021_rhizo_color <- "royalblue4"
+WSM1022_rhizo_color <- "darkslategray1"
+USDA1021_and_WSM1022_color <- "seagreen3"
+gano_ME_color <- "mediumpurple3"
+gano_IE_color <- "olivedrab"
+gano_ME_and_IE_color <- "ivory2"
+nods_ME_color <- gano_ME_color
+nods_IE_color <- gano_IE_color
+nods_ME_and_IE_color <- gano_ME_and_IE_color
+nematode_color <- "salmon4"
+
+
 ### Generating useful dataframe for upset plotting
 
 t_upset <- t %>% filter(organism == "Medicago") %>%
@@ -65,17 +83,6 @@ t_upset <- t_upset %>% rowwise() %>%
                                exp_nodp21 & !exp_nodp22 & exp_nodm21 & exp_nodm22 ~ "Expression differs across rhizobia and parasite combinations",
                                !exp_nodp21 & exp_nodp22 & exp_nodm21 & exp_nodm22 ~ "Expression differs across rhizobia and parasite combinations",
                                .default = "error"))
-    
-  #   exp_stat_1_n == 3 & exp_stat_2_n == 3, "Expressed in all sample types",
-  #                            ifelse((exp_stat_1_n == 1 & exp_stat_2_n == 2) | (exp_stat_1_n == 2 & exp_stat_2_n == 1), "Opposite expression pattern with parasites",
-  #                                   ifelse(exp_stat_1_n == 1 & exp_stat_2_n == 1, "Expression in hosts without parasites only",
-  #                                          ifelse(exp_stat_1_n == 2 & exp_stat_2_n == 2, "Expression in hosts with parasites only", 
-  #                                                 ifelse((exp_stat_1_n == 0 & exp_stat_2_n > 0) | (exp_stat_1_n > 0 & exp_stat_2_n == 0), "Expression differs across rhizobia and parasite combinations", "other")
-  #                                          )
-  #                                   )
-  #                            )
-  # )
-  # )
 
 
 t_upset_long <- t_upset %>% select("gene", starts_with("exp_stat_")) %>% pivot_longer(cols = starts_with("exp_stat_"))
@@ -603,19 +610,102 @@ sup_p8 <- ComplexUpset::upset(t %>%
                               sort_intersections_by=c('degree', 'cardinality'),
                               name = "Expression intersections",
                               labeller = ggplot2::as_labeller(
-                                c("med_gano_r.sig" = "Similar response to rhizobia strains in galls and nodules",
-                                  "med_gano_i.sig" = "Different response to rhizobia strains across galls and nodules",
-                                  "med_garo_r.sig" = "Similar response to rhizobia strains in galls and roots",
-                                  "med_garo_i.sig" = "Different response to rhizobia strains in galls and roots",
-                                  "med_noro_r.sig" = "Similar response to rhizobia strains in nodules and roots",
-                                  "med_noro_i.sig" = "Different response to rhizobia strains in nodules and roots",
-                                  "med_all_r_gall.sig" = "Similar response across all tissues")),
+                                c("med_gano_r.sig" = "Similar response in galls and nodules",
+                                  "med_gano_i.sig" = "Different response across galls and nodules",
+                                  "med_garo_r.sig" = "Similar response in galls and roots",
+                                  "med_garo_i.sig" = "Different response across galls and roots",
+                                  "med_noro_r.sig" = "Similar response in nodules and roots",
+                                  "med_noro_i.sig" = "Different response across nodules and roots",
+                                  "med_all_r_gall.sig" = "Similar response in all tissues")),
                               wrap = TRUE,  
                               set_sizes = (
                                 ComplexUpset::upset_set_size() + 
                                   geom_text(aes(label=..count..), hjust=1.1, stat='count') +
                                   expand_limits(y=1000))
-)
+) + ggtitle("Similar or different responses to rhizobia strain across different sets of organs")
 sup_p8
 
 ggsave(sup_p8, filename = "Sup_fig8.png", width = 3645, height = 2430, units = "px", bg = "white")
+
+
+
+
+
+sup_p9_1 <- as.ggplot(plot(euler(list("Exp." = t %>% filter(organism == "Medicago") %>% filter(exp_nodp) %>% pull(gene) %>% unique(),
+                            "Diff. exp." = t %>% filter(organism == "Medicago") %>% filter(med_nodp_r.sig) %>% pull(gene) %>% unique()
+)), quantities = list(type = c("percent", "counts")), cex = 0.75 , fill = c("lightblue", "red"))) + 
+  ggtitle("In nodules from infected plants\nacross rhizobia strains") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+sup_p9_2 <- as.ggplot(plot(euler(list("Exp." = t %>% filter(organism == "Medicago") %>% filter(exp_nodm) %>% pull(gene) %>% unique(),
+                                      "Diff. exp." = t %>% filter(organism == "Medicago") %>% filter(med_nodm_r.sig) %>% pull(gene) %>% unique()
+)), quantities = list(type = c("percent", "counts")), cex = 0.75 , fill = c("lightblue", "red"))) +
+  ggtitle("In nodules from uninfected\nplants across rhizobia strains") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+sup_p9_3 <- as.ggplot(plot(euler(list("Exp." = t %>% filter(organism == "Medicago") %>% filter(exp_gall) %>% pull(gene) %>% unique(),
+                                      "Diff. exp." = t %>% filter(organism == "Medicago") %>% filter(med_gall_r.sig) %>% pull(gene) %>% unique()
+)), quantities = list(type = c("percent", "counts")), cex = 0.75 , fill = c("pink", "red"))) +
+  ggtitle("In galls across\nrhizobia strains") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+sup_p9_4 <- as.ggplot(plot(euler(list("Exp." = t %>% filter(organism == "Medicago") %>% filter(exp_root) %>% pull(gene) %>% unique(),
+                                      "Diff. exp." = t %>% filter(organism == "Medicago") %>% filter(med_root_r.sig) %>% pull(gene) %>% unique()
+)), quantities = list(type = c("percent", "counts")), cex = 0.75 , fill = c("tan", "red"))) + 
+  ggtitle("In roots across\nrhizobia strains") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+sup_p9_5 <- as.ggplot(plot(euler(list("Exp." = t %>% filter(organism == "Medicago") %>% filter(exp_nods21) %>% pull(gene) %>% unique(),
+                                      "Diff. exp." = t %>% filter(organism == "Medicago") %>% filter(med_nods_r21_n.sig) %>% pull(gene) %>% unique()
+)), quantities = list(type = c("percent", "counts")), cex = 0.75 , fill = c(USDA1021_color, "red"))) + 
+  ggtitle("In nodules from plants with USDA1021\nacross parasite status") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+sup_p9_6 <- as.ggplot(plot(euler(list("Exp." = t %>% filter(organism == "Medicago") %>% filter(exp_nods22) %>% pull(gene) %>% unique(),
+                                      "Diff. exp." = t %>% filter(organism == "Medicago") %>% filter(med_nods_r22_n.sig) %>% pull(gene) %>% unique()
+)), quantities = list(type = c("percent", "counts")), cex = 0.75 , fill = c(WSM1022_color, "red"))) +
+  ggtitle("In nodules from plants with WSM1022\nacross parasite status") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+sup_p9 <- as.ggplot(grid.arrange(grobs = list(sup_p9_1, sup_p9_2, sup_p9_3, sup_p9_4, sup_p9_5, sup_p9_6),
+                                  row = 4, ncol = 2,
+                                 layout_matrix = rbind(c(1,2,3,4), c(NA, 5, 6, NA)))) +
+  ggtitle("Medicgo gene expression and differential expression in different organs") + 
+  theme(panel.background = element_rect(fill = 'white', color = 'white')) +
+  theme(plot.title = element_text(hjust = 0.5, size = 18))
+
+ggsave(sup_p9, filename = "Sup_fig9.png", width = 3600, height = 1800, units = "px", bg = "white")
+
+sup_p10 <- as.ggplot(plot(euler(list(
+  "...to rhizobia\nin infected hosts" = t %>% filter(NCR) %>% filter(med_nods_r.sig) %>% pull(gene),
+  "...to rhizobia\nsimilarly in all hosts" = t %>% filter(NCR) %>% filter(med_nods_r.sig) %>% pull(gene),
+    "...to rhizobia different\nin infected and uninfected hosts" = t %>% filter(NCR) %>% filter(med_nods_i.sig) %>% pull(gene),
+    "...to nematode infection\nsimilarly in all hosts" = t %>% filter(NCR) %>% filter(med_nods_r.sig) %>% pull(gene),
+    "...to nematode infection\ndifferently in infected and uninfected hosts" = t %>% filter(NCR) %>% filter(med_nods_i.sig) %>% pull(gene),
+    "...to nematode infection\nin hosts with WSM1022" = t %>% filter(NCR) %>% filter(med_nods_r21_n.sig) %>% pull(gene),
+    "...to nematode infection\nin hosts with USDA1021" = t %>% filter(NCR) %>% filter(med_nods_r22_n.sig) %>% pull(gene))), quantities = TRUE))
+sup_p10
+
+
+
+as.ggplot(plot(euler(list(
+  "...to rhizobia\nin infected hosts" = t %>% filter(NCR) %>% filter(med_nodp_r.sig) %>% pull(gene),
+  "...to rhizobia\nsimilarly in all hosts" = t %>% filter(NCR) %>% filter(med_nods_r.sig) %>% pull(gene),
+  "...with an interaction effect\nof rhizobia strain and\nnematode status" = t %>% filter(NCR) %>% filter(med_nods_i.sig) %>% pull(gene),
+  "...to nematode infection\nsimilarly in all hosts" = t %>% filter(NCR) %>% filter(med_nods_n.sig) %>% pull(gene),
+  "...to nematode infection\nin hosts with WSM1022" = t %>% filter(NCR) %>% filter(med_nods_r21_n.sig) %>% pull(gene),
+  "...to nematode infection\nin hosts with USDA1021" = t %>% filter(NCR) %>% filter(med_nods_r22_n.sig) %>% pull(gene))), quantities = TRUE)) + ggtitle("Number of host NCR genes responding...")
+
+
+
+as.ggplot(plot(euler(list(
+  "...to rhizobia\nin infected hosts" = t %>% filter(NCR) %>% filter(med_nodp_r.sig) %>% pull(gene),
+  "...to rhizobia\nsimilarly in all hosts" = t %>% filter(NCR) %>% filter(med_nods_r.sig) %>% pull(gene),
+  "...with an interaction effect\nof rhizobia strain and\nnematode status" = t %>% filter(NCR) %>% filter(med_nods_i.sig) %>% pull(gene))), quantities = TRUE)) + ggtitle("Number of host NCR genes responding...")
+
+as.ggplot(plot(euler(list(
+  "...to nematode infection\nsimilarly in all hosts" = t %>% filter(NCR) %>% filter(med_nods_n.sig) %>% pull(gene),
+  "...to nematode infection\nin hosts with WSM1022" = t %>% filter(NCR) %>% filter(med_nods_r21_n.sig) %>% pull(gene),
+  "...to nematode infection\nin hosts with USDA1021" = t %>% filter(NCR) %>% filter(med_nods_r22_n.sig) %>% pull(gene),
+  "...with an interaction effect\nof rhizobia strain and\nnematode status" = t %>% filter(NCR) %>% filter(med_nods_i.sig) %>% pull(gene))), quantities = TRUE)) + ggtitle("Number of host NCR genes responding...")

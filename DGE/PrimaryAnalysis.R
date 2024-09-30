@@ -1,10 +1,10 @@
 ################################################################################
 # Author: Addison Dale Buxton-Martin
 # 
-# Description: This script runs the primarily analysis for ___
+# Description: This script is the primary script for RNAseq analysis for ___
 # This analysis will take gene expression quantification data (output of
-# HTSeq-union method) and perform various differential expression
-# analyses as outlined in the article found at ___.
+# HTSeq-union method) and import it and perform various differential expression
+# analyses using DESeq2 as outlined in the article.
 #
 # Data Requirements: This script requires that it be placed in a directory that 
 # also contains a medicago, nematode, and two rhizobe subdirectories where 
@@ -14,16 +14,61 @@
 # subdirectories entitled "counts" containing the count data from HTSeq. Each of
 # these count files is prefaced with the sample number and an underscore then
 # "count". The main directory must also include a samples.csv file that outlines
-# the sample types as specified by Michael Love's DESeq2 workflow.
+# the sample types as specified by Michael Love's DESeq2 workflow. Additionally,
+# some annotations of the Medicago genome should be present in the Medicago
+# subdirectory as follows:
+# LeGOO-Curated-GeneNames.csv that contains a mapping of gene names to from
+#     the Mt5.0 locus to annotations; also used to infer NCR status; sourced
+#     from https://lipm-browsers.toulouse.inra.fr/k/legoo/ > Donwloads > 
+#     Gene Acronym vs ID
+# MtrunA17r5.0-ANR_geneIDs.txt that maps Mt5.0 gene locus tags to Noble locus
+#      tagsl; sourced from Mt A17 r5.0 genome portal with INRA
+# TPC2019-RA-00279_Supplemental_Data_Set_1.csv that includes information about
+#      functional characterization of genes as mutualism related; sourced from
+#      Roy et al. (2019). Plant Cell 10.1105/tpc.19.00279
+# MtrunA17r5.0-ANR-EGN-r1.9.b2g.gaf that maps gene locus to go terms; sourced
+#      from the functional annotations of the Mt5.0 genome done by INRA
+# 
 ################################################################################
 
 
 # loading requisite libraries
-library("DESeq2")
-library("GenomicFeatures")
-library("rtracklayer")
-library("GenomicRanges")
-library("tidyverse")
+# Define a function to check, install, and load a library
+check_and_load_libraries <- function(library_names) {
+  # Ensure library_names is a vector
+  if (!is.character(library_names)) {
+    stop("The input must be a character vector of package names.")
+  }
+  
+  for (library_name in library_names) {
+    if (!requireNamespace(library_name, quietly = TRUE)) {
+      # Try installing the package using base install.packages
+      tryCatch({
+        install.packages(library_name, dependencies = TRUE)
+      }, error = function(e) {
+        # If base install.packages fails, try BiocManager::install
+        if (requireNamespace("BiocManager", quietly = TRUE)) {
+          BiocManager::install(library_name, dependencies = TRUE)
+        } else {
+          stop("BiocManager is required but not installed.")
+        }
+      })
+    }
+    # Load the library
+    library(library_name, character.only = TRUE)
+  }
+}
+
+#Libraries for this script
+check_and_load_libraries(c("DESeq2", "GenomicFeatures", "rtracklayer", "GenomicRanges", "tidyverse"))
+
+#Libraries for scripts that are called at the bottom of the script
+check_and_load_libraries(c(
+"AnnotationForge", "clusterProfiler", "ComplexUpset", "cowplot", "eulerr",
+"grid", "gridExtra", "ggh4x", "ggplot2", "ggplotify", "ggpmisc", "ggpp",
+"ggpubr", "GOfuncR", "pheatmap", "PoiClaClu", "RColorBrewer", "stringr",
+"tidyverse"
+))
 
 
 
@@ -31,46 +76,39 @@ library("tidyverse")
 ################################################################################
 ############################## DIRECTORY HANDLING ##############################
 ################################################################################
+dir_main <- if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+  dirname(rstudioapi::getSourceEditorContext()$path)
+} else {
+  dirname(normalizePath(sys.frame(1)$ofile))
+}
 
+#manual back up for setting main directory)
 ################################################################################
 # Edit the file path of dir_main to be the folder containing this script.
 # The data should be in this main directory as specified in the above Data
 # Requirements section in the heading of this script
-dir_main <- file.path("~", "Desktop", "DGE")
+# dir_main <- file.path("~", "Desktop", "DGE")
 ################################################################################
 
+# Subdirectories for genome annotations and count data
 dir_medic <- file.path(dir_main, "Medicago")
 dir_nema <- file.path(dir_main, "Nema")
 dir_rhizo21 <- file.path(dir_main, "Rhizob21")
 dir_rhizo22 <- file.path(dir_main, "Rhizob22")
 
+# Output subdirectory
 dir_out <- file.path(dir_main, "out")
 dir.create(dir_out, showWarnings = FALSE)
 
-setwd(dir_main)
-
-
-
 ### LOADING DATA IF SCRIPT HAS PREVIOUSLY BEEN RUN ###
 
-setwd(dir_out)
-if (file.exists("Diff_express_results_table.RData"))
-{
-  load(file = "Diff_express_results_table.RData")
-  t <- t %>% as.data.frame()
+if (file.exists(file.path(dir_out, "Diff_express_results_table.RData"))) {
+  load(file.path(dir_out, "Diff_express_results_table.RData"))
+  t <- as.data.frame(t)
   setwd(dir_main)
-  stop
-}else{
-  setwd(dir_main)
+  stop("Previously run data loaded successfully")
 }
-
-#### STOP HERE IF SCRIPT HAS PREVIOUSLY BEEN RUN ###
-
-
-
-
-
-
+setwd(dir_main)
 
 ################################################################################
 ######################## SUBSET LISTS FOR DATA PROCESS #########################
@@ -81,36 +119,46 @@ sampleData <- read.csv(file.path(dir_main, "samples.csv"),
                        header = TRUE,
                        check.names = FALSE)
 
+cresub <- function(t = NULL, n = NULL, r = NULL){
+  # "CREate SUBset function for subsetting samples
+  rt <- sampleData
+  if (!is.null(t)) {rt <- rt %>% filter(tissue == t)}
+  if (!is.null(n)) {rt <- rt %>% filter(nema == n)}
+  if (!is.null(r)) {rt <- rt %>% filter(rhizo == r)}
+  return(rownames(rt))
+}
+
 all_subset <- rownames(sampleData)
 
-gall_subset <- sampleData %>% filter(tissue == "Gall") %>% rownames()
-nodp_subset <- sampleData %>% filter(tissue == "Nodule" & nema == "Nema") %>% rownames()
-nodm_subset <- sampleData %>% filter(tissue == "Nodule" & nema == "No_Nema") %>% rownames()
-root_subset <- sampleData %>% filter(tissue == "Root") %>% rownames()
+gall_subset <- cresub(t = "Gall")
+nodp_subset <- cresub(t = "Nodule", n = "Nema")
+nodm_subset <- cresub(t = "Nodule", n = "No_Nema")
+root_subset <- cresub(t = "Root")
 
-gall21_subset <- sampleData %>% filter(tissue == "Gall" & rhizo == "Em1021") %>% rownames()
-nodp21_subset <- sampleData %>% filter(tissue == "Nodule" & nema == "Nema" & rhizo == "Em1021") %>% rownames()
-nodm21_subset <- sampleData %>% filter(tissue == "Nodule" & nema == "No_Nema" & rhizo == "Em1021") %>% rownames()
-root21_subset <- sampleData %>% filter(tissue == "Root" & rhizo == "Em1021") %>% rownames()
+gall21_subset <- cresub(t = "Gall", r = "Em1021")
+nodp21_subset <- cresub(t = "Nodule", r = "Em1021", n = "Nema")
+nodm21_subset <- cresub(t = "Nodule", r = "Em1021", n = "No_Nema")
+root21_subset <- cresub(t = "Root", r = "Em1021")
 
-gall22_subset <- sampleData %>% filter(tissue == "Gall" & rhizo == "Em1022") %>% rownames()
-nodp22_subset <- sampleData %>% filter(tissue == "Nodule" & nema == "Nema" & rhizo == "Em1022") %>% rownames()
-nodm22_subset <- sampleData %>% filter(tissue == "Nodule" & nema == "No_Nema" & rhizo == "Em1022") %>% rownames()
-root22_subset <- sampleData %>% filter(tissue == "Root" & rhizo == "Em1021") %>% rownames()
+gall22_subset <- cresub(t = "Gall", r = "Em1022")
+nodp22_subset <- cresub(t = "Nodule", r = "Em1022", n = "Nema")
+nodm22_subset <- cresub(t = "Nodule", r = "Em1022", n = "No_Nema")
+root22_subset <- cresub(t = "Root", r = "Em1022")
 
 medicago_subset <- all_subset
-rhizob21_subset <- sampleData %>% filter(rhizo == "Em1021" & tissue == "Nodule") %>% rownames()
-rhizob22_subset <- sampleData %>% filter(rhizo == "Em1022" & tissue == "Nodule") %>% rownames()
-nematode_subset <- sampleData %>% filter(tissue == "Gall") %>% rownames()
+rhizob21_subset <- cresub(r = "Em1021", t = "Nodule")
+rhizob22_subset <- cresub(r = "Em1022", t = "Nodule")
+nematode_subset <- cresub(t = "Gall")
 
-nods_subset <- sampleData %>% filter(tissue == "Nodule") %>% rownames()
-nods21_subset <- sampleData %>% filter(tissue == "Nodule" & rhizo == "Em1021") %>% rownames()
-nods22_subset <- sampleData %>% filter(tissue == "Nodule" & rhizo == "Em1022") %>% rownames()
-garo_subset <- sampleData %>% filter(tissue == "Gall" | tissue == "Root") %>% rownames()
-gano_subset <- sampleData %>% filter(tissue == "Gall" | (tissue == "Nodule" & nema == "Nema")) %>% rownames()
-noro_subset <- sampleData %>% filter(tissue == "Root" | (tissue == "Nodule" & nema == "Nema")) %>% rownames()
+nods_subset <- cresub(t = "Nodule")
+nods21_subset <- cresub(t = "Nodule", r = "Em1021")
+nods22_subset <- cresub(t = "Nodule", r = "Em1022")
 
-alln_subset <- sampleData %>% filter((tissue == "Nodule" & nema == "Nema") | tissue == "Gall" | tissue == "Root") %>% rownames()
+garo_subset <- union(cresub(t = "Gall"), cresub(t = "Root"))
+gano_subset <- union(cresub(t = "Gall"), cresub(t = "Nodule", n = "Nema"))
+noro_subset <- union(cresub(t = "Root"), cresub(t = "Nodule", n = "Nema"))
+
+alln_subset <- cresub(n = "Nema")
 
 
 
@@ -119,39 +167,48 @@ alln_subset <- sampleData %>% filter((tissue == "Nodule" & nema == "Nema") | tis
 ############################# COUNT DATA IMPORTING #############################
 ################################################################################
 
-import_counts <- function(directory) {
+import_counts <- function(dir) {
   # Function that imports the count files into data frame
   # Will take all files whose names are prefixed by a number followed by a
   # subscript and then "count" (i.e. "1_count") and load them into a dataframe
-  files <- list.files(file.path(directory, "counts"))
-  if (length(files) == length(which(endsWith(files, "_count")))) {
-    return_df <- data.frame(gene = character())
-    for (file in files){
-      sample_num <- as.numeric(substr(file, 1, nchar(file)-6))
-      if (is.na(sample_num)) {
-        print("ERROR: A file in the directory supplied to import counts does not match required naming scheme")
-        exit()
-      }
-      file_path <- file.path(directory, "counts", file)
-      print(paste("Importing count data from:", file_path))
-      imported_file <- read.csv(file_path, sep = "\t", header = FALSE)
-      colnames(imported_file) <- c("gene", paste0("s", sample_num))
-      return_df <- full_join(imported_file, return_df, by = "gene")}
-    rownames(return_df) <- return_df$gene
-    return(return_df)
-  } else {
-    print("ERROR: a file in the directory supplied to import counts does not match required naming scheme")
-  }}
+  files <- list.files(file.path(dir, "counts"), pattern = "_count$")
+  print(files)
+  
+  if (length(files) != length(which(endsWith(files, "_count")))) {
+    stop("ERROR: A file in the count directory attempting to be imported does not match the required naming scheme.")
+  }
+  
+  return_df <- data.frame(gene = character())
+  
+  for (file in files) {
+    sample_num <- as.numeric(sub("_count", "", file))
+    
+    if(is.na(sample_num)) {
+      stop("ERROR: A file in the count directory attempting to be imported does not match the required naming scheme.")
+    }
+    
+    file_path <- file.path(dir, "counts", file)
+    message("Importing count data from: ", file_path)
+    
+    imported_file <- read.csv(file_path, sep = "\t", header = FALSE)
+    colnames(imported_file) <- c("gene", paste0("s", sample_num))
+    
+    return_df <- full_join(imported_file, return_df, by = "gene")
+  }
+  
+  rownames(return_df) <- return_df$gene
+  return(return_df)
+}
 
 
 #Importing counts and removing the read data for poor or ambiguous alignments
 #and putting them into count tables
 remove_rows <- c("__too_low_aQual", "__not_aligned",
                  "__no_feature", "__ambiguous", "__alignment_not_unique")
-medicago_counts <- import_counts(dir_medic) %>% filter(!(gene %in% remove_rows))
-nematode_counts <- import_counts(dir_nema) %>% filter(!(gene %in% remove_rows))
-rhizob21_counts <- import_counts(dir_rhizo21) %>% filter(!(gene %in% remove_rows))
-rhizob22_counts <- import_counts(dir_rhizo22) %>% filter(!(gene %in% remove_rows))
+medicago_counts <- import_counts(dir_medic) %>% filter(!gene %in% remove_rows)
+nematode_counts <- import_counts(dir_nema) %>% filter(!gene %in% remove_rows)
+rhizob21_counts <- import_counts(dir_rhizo21) %>% filter(!gene %in% remove_rows)
+rhizob22_counts <- import_counts(dir_rhizo22) %>% filter(!gene %in% remove_rows)
 
 
 
@@ -161,24 +218,28 @@ rhizob22_counts <- import_counts(dir_rhizo22) %>% filter(!(gene %in% remove_rows
 
 prok_gene_length_processing <- function(directory){
   # Function to pull gene length information from gtf file of a prokaryote
+  
+  # Import GTF file and convert to a tibble
   GTF_file_path <- file.path(directory, "annotation.gtf")
-  rangeddata <- import.gff(GTF_file_path)
-  granges <- as(rangeddata, "GRanges")
-  granges <- as_tibble(granges)
+  granges <- as_tibble(as(import.gff(GTF_file_path), "GRanges"))
+  
+  # Extract and calculate gene lengths
   gene_length <- granges %>%  
-    dplyr::select(gene_id, type, start, end) %>% 
-    filter(type == "gene") %>% 
-    rowwise() %>% mutate(width = (max(start, end) - min(start, end))/1000) %>% 
-    dplyr::select(gene_id, width)
-  # gene_length <- as.data.table(gene_length)
+    filter(type == "gene") %>% rowwise() %>%
+    mutate(width = (max(start, end) - min(start, end))/1000) %>% 
+    select(gene_id, width)
   colnames(gene_length) <- c("gene", "widthInKB")
   return(gene_length)
 }
 
 euk_gene_length_processing <- function(directory){
   # Function to pull gene length information from gtf file of a eukaryote
+  
+  # Import GTF file and convert to a TxDb object
   GTF_file_path <- file.path(directory, "annotation.gtf")
   txdb <- makeTxDbFromGFF(GTF_file_path, format = "gtf")
+  
+  # Extract and calculate gene lengths
   edg <- exonsBy(txdb, by = "gene")
   gene_length <- as.data.frame(sum(width(edg)/1000))
   base::colnames(gene_length) <- c("widthInKB")
@@ -194,7 +255,7 @@ rhizob21_genes <- prok_gene_length_processing(dir_rhizo21) %>% mutate(organism =
 rhizob22_genes <- prok_gene_length_processing(dir_rhizo22) %>% mutate(organism = "Rhizob22")
 
 #filtering out erroneous duplicate genes from gene length function
-rhizob21_genes <- rhizob21_genes %>%
+rhizob21_genes <- rhizob21_genes %>% rowwise() %>%
   group_by(gene) %>%
   summarize(widthInKB = max(widthInKB)) %>%
   ungroup() %>%
@@ -222,33 +283,23 @@ rpkm_and_base_exp <- function(table, rpkm_threshold = 1, exp_threshold = 2){
   # getting list of all the samples in the passed table and making blank
   # dataframes of rpkm and expression status for later merging into final
   # returned table
-  cols <- table %>% dplyr::select(-c("gene", "widthInKB", "organism")) %>% base::colnames()
+  cols <- colnames(table)[!(colnames(table) %in% c("gene", "widthInKB", "organism"))]
   df_rpkm <- table %>% dplyr::select("gene")
   df_exp <- table %>% dplyr::select("gene")
   
   # iterating through samples in table to calculate rpkm and expression statuses
   for (col in cols) {
-    t <- as_tibble(table)
     rpkm_col <- paste0(col, "_rpkm")
-    t[[rpkm_col]] <- t[[col]] / sum(t[[col]], na.rm = TRUE) / t$widthInKB * 1000000
     exp_col <- paste0("exp_", col)
-    t[[exp_col]] <- ifelse(t[[rpkm_col]] >= rpkm_threshold, TRUE, FALSE)  
     
-    #joining with blank dataframes created earlier
-    df_rpkm <- full_join(
-      as_tibble(t %>% dplyr::select(c("gene", rpkm_col))),
-      df_rpkm,
-      by = "gene")
-    df_exp <- full_join(
-      as_tibble(t %>% dplyr::select(c("gene", exp_col))), 
-      df_exp, 
-      by = "gene")
+    table[[rpkm_col]] <- table[[col]] / sum(table[[col]], na.rm = TRUE) / table$widthInKB * 1e6
+    table[[exp_col]] <- table[[rpkm_col]] >= rpkm_threshold
   }
-  
   #joining rpkm and expression tables
   df <- full_join(df_rpkm, df_exp, by = "gene")
   return_table <- full_join(table, df, by = "gene")
-  
+
+
   # inner function to determine expression status in categories of tissues
   # this function will return the table with an added column indicating the 
   # expression status in the subset fed to it
@@ -265,14 +316,19 @@ rpkm_and_base_exp <- function(table, rpkm_threshold = 1, exp_threshold = 2){
     }
     return(return_table)
   }
-  return_table <- exp_row_sums(return_table, gall21_subset, "exp_gall21")
-  return_table <- exp_row_sums(return_table, gall22_subset, "exp_gall22")
-  return_table <- exp_row_sums(return_table, nodp21_subset, "exp_nodp21")
-  return_table <- exp_row_sums(return_table, nodp22_subset, "exp_nodp22")
-  return_table <- exp_row_sums(return_table, nodm21_subset, "exp_nodm21")
-  return_table <- exp_row_sums(return_table, nodm22_subset, "exp_nodm22")
-  return_table <- exp_row_sums(return_table, root21_subset, "exp_root21")
-  return_table <- exp_row_sums(return_table, root22_subset, "exp_root22")
+  
+  # List of subsets for expression status calculation
+  subsets <- list(
+    gall21 = gall21_subset, gall22 = gall22_subset,
+    nodp21 = nodp21_subset, nodp22 = nodp22_subset,
+    nodm21 = nodm21_subset, nodm22 = nodm22_subset,
+    root21 = root21_subset, root22 = root22_subset
+  )
+  
+  for (name in names(subsets)) {
+    return_table <- exp_row_sums(return_table, subsets[[name]], paste0("exp_", name))
+  }
+  
   return(return_table)
 }
 
@@ -282,6 +338,8 @@ rhizob21_table <- rpkm_and_base_exp(rhizob21_pretable)
 rhizob22_table <- rpkm_and_base_exp(rhizob22_pretable)
 nematode_table <- rpkm_and_base_exp(nematode_pretable)
 
+
+
 expression_col <- function(table){
   # Function to determine the expression status of sample types that are
   # composite sample types (ex: gall sample type which is composed of galls
@@ -289,31 +347,35 @@ expression_col <- function(table){
   
   expression <- function(table, subset, col_name){
     # Inner function to determine expression from given columns
-    cols <- table %>% base::colnames()
-    return_table <- table
-    if (sum(subset %in% cols) == length(subset)){
-      return_table <- return_table %>%
-        mutate("{col_name}" := ifelse(rowSums(dplyr::select(., subset), na.rm = TRUE) > 0,
-                                      TRUE,
-                                      FALSE))
-    }
+    cols <- colnames(table)
+    # if (all(subset %in% cols)){
+      return_table <- table %>% 
+        mutate(!!col_name := rowSums(select(table, any_of(subset)), na.rm = TRUE) > 0)
+    # }
     return(return_table)
   }
   
-  rt <- table
-  rt <- expression(rt, c("exp_gall21", "exp_gall22"), "exp_gall")
-  rt <- expression(rt, c("exp_nodp21", "exp_nodp22"), "exp_nodp")
-  rt <- expression(rt, c("exp_nodm21", "exp_nodm22"), "exp_nodm")
-  rt <- expression(rt, c("exp_root21", "exp_root22"), "exp_root")
-  rt <- expression(rt, c("exp_nodp21", "exp_nodm21"), "exp_nods21")
-  rt <- expression(rt, c("exp_nodp22", "exp_nodm22"), "exp_nods22")
-  rt <- expression(rt, c("exp_nodm", "exp_nodp", "exp_nods21", "exp_nods22"), "exp_nods")
-  rt <- expression(rt, c("exp_gall", "exp_root"), "exp_garo")
-  rt <- expression(rt, c("exp_gall", "exp_nodp"), "exp_gano")
-  rt <- expression(rt, c("exp_nodp", "exp_root"), "exp_noro")
-  rt <- expression(rt, c("exp_nods", "exp_root", "exp_gall"), "exp")
-  return(rt)
+  composite_types <- list(
+    list(subset = c("exp_gall21", "exp_gall22"), col_name = "exp_gall"),
+    list(subset = c("exp_nodp21", "exp_nodp22"), col_name = "exp_nodp"),
+    list(subset = c("exp_nodm21", "exp_nodm22"), col_name = "exp_nodm"),
+    list(subset = c("exp_root21", "exp_root22"), col_name = "exp_root"),
+    list(subset = c("exp_nodp21", "exp_nodm21"), col_name = "exp_nods21"),
+    list(subset = c("exp_nodp22", "exp_nodm22"), col_name = "exp_nods22"),
+    list(subset = c("exp_nodm", "exp_nodp", "exp_nods21", "exp_nods22"), col_name = "exp_nods"),
+    list(subset = c("exp_gall", "exp_root"), col_name = "exp_garo"),
+    list(subset = c("exp_gall", "exp_nodp"), col_name = "exp_gano"),
+    list(subset = c("exp_nodp", "exp_root"), col_name = "exp_noro"),
+    list(subset = c("exp_nods", "exp_root", "exp_gall"), col_name = "exp")
+  )
+  
+  for (comp_type in composite_types) {
+    table <- expression(table, comp_type$subset, comp_type$col_name)
+  }
+  
+  return(table)
 }
+
 
 #Adding expression status for sample types to table
 medicago_table <- expression_col(medicago_table)
@@ -330,16 +392,6 @@ rm(medicago_pretable, medicaog_genes, nematode_pretable, nematode_genes,
 ################################################################################
 ############################## CREATING GENE LISTS #############################
 ################################################################################
-
-filter_reads <- function(counts, gene_list){
-  # Function for pulling genes out by expression tatus
-  returnCounts <- counts[which(counts$gene %in% gene_list), ]
-  print(paste("Total in the list provided to keep:", length(gene_list)))
-  print(paste("Total features with counts after filtering:", length(returnCounts$gene)))
-  print(paste("Number of features removed:", length(counts$gene) - length(returnCounts$gene)))
-  return(returnCounts)
-}
-
 gl_med_exp <- medicago_table %>% filter(exp_gall | exp_nods | exp_root) %>% filter(organism == "Medicago") %>% pull(gene)
 gl_med_exp_gall <- medicago_table %>% filter(exp_gall) %>% filter(organism == "Medicago") %>% pull(gene)
 gl_med_exp_nodp <- medicago_table %>% filter(exp_nodp) %>% filter(organism == "Medicago") %>% pull(gene)
@@ -427,6 +479,7 @@ Run_DESeq <- function(dds, equation, reduced_eq, effect,
 
 # Datsets to draw normalized count data from
 dds_medicago <- DESeq_setup(medicago_subset, medicago_counts, ~1)
+dds_medicago <- DESeq_setup(medicago_subset, medicago_counts, ~1)
 dds_nematode <- DESeq_setup(nematode_subset, nematode_counts, ~1)
 dds_rhizob21 <- DESeq_setup(rhizob21_subset, rhizob21_counts, ~1)
 dds_rhizob22 <- DESeq_setup(rhizob22_subset, rhizob22_counts, ~1)
@@ -445,36 +498,33 @@ colnames(rhizob22_norm_counts) <- paste0(colnames(rhizob22_norm_counts), "_norm"
 ave_norm <- function(table){
   cols <- colnames(table)
   table$gene <- rownames(table)
-  return_table <- table
-  if ("s1_norm" %in% cols & "s2_norm" %in% cols & "s5_norm" %in% cols & "s6_norm" %in% cols & "s9_norm" %in% cols & "s10_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_root = mean(s1_norm, s2_norm, s5_norm, s6_norm, s9_norm, s10_norm))}
-  if ("s13_norm" %in% cols & "s14_norm" %in% cols & "s17_norm" %in% cols & "s18_norm" %in% cols & "s21_norm" %in% cols & "s22_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_gall = mean(s13_norm, s14_norm, s17_norm, s18_norm, s21_norm, s22_norm))}
-  if ("s25_norm" %in% cols & "s26_norm" %in% cols & "s29_norm" %in% cols & "s30_norm" %in% cols & "s33_norm" %in% cols & "s34_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_nodp = mean(s25_norm, s26_norm, s29_norm, s30_norm, s33_norm, s34_norm))}
-  if ("s37_norm" %in% cols & "s38_norm" %in% cols & "s41_norm" %in% cols & "s42_norm" %in% cols & "s45_norm" %in% cols & "s46_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_nodm = mean(s37_norm, s38_norm, s41_norm, s42_norm, s45_norm, s46_norm))}
-  if ("s1_norm" %in% cols & "s5_norm" %in% cols & "s9_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_root_rh21 = mean(s1_norm, s5_norm, s9_norm))}
-  if ("s2_norm" %in% cols & "s6_norm" %in% cols & "s10_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_root_rh22 = mean(s2_norm, s6_norm, s10_norm))}
-  if ("s13_norm" %in% cols & "s17_norm" %in% cols & "s21_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_gall_rh21 = mean(s13_norm, s17_norm, s21_norm))}
-  if ("s14_norm" %in% cols & "s18_norm" %in% cols & "s22_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_gall_rh22 = mean(s14_norm, s18_norm, s22_norm))}
-  if ("s25_norm" %in% cols & "s29_norm" %in% cols & "s33_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_nodp_rh21 = mean(s25_norm, s29_norm, s33_norm))}
-  if ("s26_norm" %in% cols & "s30_norm" %in% cols & "s34_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_nodp_rh22 = mean(s26_norm, s30_norm, s34_norm))}
-  if ("s37_norm" %in% cols & "s41_norm" %in% cols & "s45_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_nodm_rh21 = mean(s37_norm, s41_norm, s45_norm))}
-  if ("s38_norm" %in% cols & "s42_norm" %in% cols & "s46_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_nodm_rh22 = mean(s38_norm, s42_norm, s46_norm))}
-  if ("s25_norm" %in% cols & "s29_norm" %in% cols & "s33_norm" %in% cols & "s37_norm" %in% cols & "s41_norm" %in% cols & "s45_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_rh21 = mean(s25_norm, s29_norm, s33_norm, s37_norm, s41_norm, s45_norm))}
-  if ("s26_norm" %in% cols & "s30_norm" %in% cols & "s34_norm" %in% cols & "s38_norm" %in% cols & "s42_norm" %in% cols & "s46_norm" %in% cols){
-    return_table <- return_table %>% rowwise() %>% mutate(ave_norm_rh22 = mean(s26_norm, s30_norm, s34_norm, s38_norm, s42_norm, s46_norm))}
-  return(return_table) 
+
+  # mapping of new column names to corresponding sets of existing columns
+  col_groups <- list(
+    ave_norm_root = c("s1_norm", "s2_norm", "s5_norm", "s6_norm", "s9_norm", "s10_norm"),
+    ave_norm_gall = c("s13_norm", "s14_norm", "s17_norm", "s18_norm", "s21_norm", "s22_norm"),
+    ave_norm_nodp = c("s25_norm", "s26_norm", "s29_norm", "s30_norm", "s33_norm", "s34_norm"),
+    ave_norm_nodm = c("s37_norm", "s38_norm", "s41_norm", "s42_norm", "s45_norm", "s46_norm"),
+    ave_norm_root_rh21 = c("s1_norm", "s5_norm", "s9_norm"),
+    ave_norm_root_rh22 = c("s2_norm", "s6_norm", "s10_norm"),
+    ave_norm_gall_rh21 = c("s13_norm", "s17_norm", "s21_norm"),
+    ave_norm_gall_rh22 = c("s14_norm", "s18_norm", "s22_norm"),
+    ave_norm_nodp_rh21 = c("s25_norm", "s29_norm", "s33_norm"),
+    ave_norm_nodp_rh22 = c("s26_norm", "s30_norm", "s34_norm"),
+    ave_norm_nodm_rh21 = c("s37_norm", "s41_norm", "s45_norm"),
+    ave_norm_nodm_rh22 = c("s38_norm", "s42_norm", "s46_norm"),
+    ave_norm_rh21 = c("s25_norm", "s29_norm", "s33_norm", "s37_norm", "s41_norm", "s45_norm"),
+    ave_norm_rh22 = c("s26_norm", "s30_norm", "s34_norm", "s38_norm", "s42_norm", "s46_norm")
+  )
+
+  # loop through the mapping and calculate the mean for each group
+  for (new_col in names(col_groups)) {
+    subset <- col_groups[[new_col]]
+    if (all(subset %in% cols)) {
+      table[[new_col]] <- rowMeans(table[, subset], na.rm = TRUE)
+    }
+  }
+  return(table)
 }
 
 medicago_norm_counts <- ave_norm(medicago_norm_counts)
@@ -501,6 +551,18 @@ dds_medicago_gall_qc <- DESeq_setup(base::intersect(medicago_subset, gall_subset
 ################################################################################
 ################################### DE SETUP ###################################
 ################################################################################
+
+options(contrasts=c("contr.treatment", "contr.poly"))
+
+filter_reads <- function(counts, gene_list){
+  # Function for pulling genes out by expression status
+  returnCounts <- counts[which(counts$gene %in% gene_list), ]
+  print(paste("Total in the list provided to keep:", length(gene_list)))
+  print(paste("Total features with counts after filtering:", length(returnCounts$gene)))
+  print(paste("Number of features removed:", length(counts$gene) - length(returnCounts$gene)))
+  return(returnCounts)
+}
+
 
 dds_medicago_nodp_r     <- DESeq_setup(nodp_subset,                             filter_reads(medicago_counts, gl_med_exp_nodp), ~batch+rhizo)
 dds_medicago_nodm_r     <- DESeq_setup(nodm_subset,                             filter_reads(medicago_counts, gl_med_exp_nodm), ~rhizo)
@@ -672,7 +734,6 @@ results_list <- lst(tables, med_gall_r_res, med_nodp_r_res, med_nodm_r_res, med_
 t <- Reduce(function(x, y) merge(x, y, all=TRUE, by = "gene"), results_list)
 
 
-
 ################################################################################
 ###################### ADDING SELECT ANNOTATIONS TO TABLE ######################
 ################################################################################
@@ -730,20 +791,56 @@ t <- t %>% mutate(N_cv = sd(pick(s25, s26, s29, s30, s33, s34, s37, s38, s41, s4
 
 t <- t %>% mutate(cv_qc_greater = (G21_cv_greater_all | G22_cv_greater_all | Np21_cv_greater_all | Np22_cv_greater_all | Nm21_cv_greater_all | Nm22_cv_greater_all | R21_cv_greater_all | R22_cv_greater_all))
 
+t_pre2 <- t
+
 cv_percent_table <- rbind(
   "Rhizob22" = t %>% filter(organism == "Rhizob21") %>% select(ends_with("greater_all")) %>% colSums(na.rm = TRUE) / length(t %>% filter(organism == "Rhizob21") %>% pull(gene)),
   "Rhizob21" = t %>% filter(organism == "Rhizob22") %>% select(ends_with("greater_all")) %>% colSums(na.rm = TRUE) / length(t %>% filter(organism == "Rhizob22") %>% pull(gene)),
   "Medicago" = t %>% filter(organism == "Medicago") %>% select(ends_with("greater_all")) %>% colSums(na.rm = TRUE) / length(t %>% filter(organism == "Medicago") %>% pull(gene)),
   "Nematode" = t %>% filter(organism == "Nematode") %>% select(ends_with("greater_all")) %>% colSums(na.rm = TRUE) / length(t %>% filter(organism == "Nematode") %>% pull(gene)))
-cv_percent_table
 
 
+################################################################################
+############################### IDING MUTUALISIM GENES ###############################
+################################################################################
+
+mutualism_genes <- read.csv(file.path(dir_medic, "TPC2019-RA-00279_Supplemental_Data_Set_1.csv"), skip = 1)
+names_conversion_1 <- read.csv(file.path(dir_medic, "LeGOO-Currated-GeneNames.csv"))
+names_conversion_2 <- read.csv(file.path(dir_medic, "MtrunA17r5.0-ANR_geneIDs.txt"), sep = "\t")
+
+colnames(names_conversion_2) <- c("gene", "old_gene")
+names_conversion_1 <- names_conversion_1 %>% 
+  select(Mt5.0..r1.7..locus.tag, ID.Mt4.0) %>%
+  rename("gene" = Mt5.0..r1.7..locus.tag, "old_gene" = ID.Mt4.0)
+names_conversion_2$old_gene <- gsub(".1", "", names_conversion_2$old_gene, fixed = TRUE)
+names_conversion_2$old_gene <- gsub(".2", "", names_conversion_2$old_gene, fixed = TRUE)
+names_conversion_2$old_gene <- gsub(".3", "", names_conversion_2$old_gene, fixed = TRUE)
+names_conversion_2$old_gene <- gsub(".4", "", names_conversion_2$old_gene, fixed = TRUE)
+names_conversion_1$old_gene <- gsub("#N/A", NA, names_conversion_1$old_gene, fixed = TRUE)
+
+names_conversion_1 <- names_conversion_1 %>% unique()
+names_conversion_2 <- names_conversion_2 %>% unique()
+
+full_conversion <- full_join(names_conversion_1, names_conversion_2, by = "gene", suffix = c("_1", "_2"))
+
+full_conversion <- full_conversion %>%
+  pivot_longer(cols = starts_with("old_gene"), values_drop_na = TRUE) %>%
+  group_by(gene) %>%
+  summarize(old_gene = paste(unique(value), collapse = "/")) %>%
+  filter(gene != "#N/A" & gene != "UNDEF")
+
+t <- left_join(t_pre2, full_conversion, by = "gene")
+
+list_of_mutualism_genes <- unlist(lapply(mutualism_genes$Medicago.Gene.ID, function(x) strsplit(x, ", ")[[1]]))
+
+t <- t %>% rowwise() %>%
+  mutate(mutualism_gene = if_else(
+    any(unlist(strsplit(old_gene, "/")) %in% list_of_mutualism_genes), TRUE, FALSE))
 
 
 ################################################################################
 ############################### WRITING DATA OUT ###############################
 ################################################################################
-
 setwd(dir_out)
 save(t, file = "Diff_express_results_table.RData")
 write.csv(t, file = "Diff_express_results_table.csv")
@@ -811,7 +908,18 @@ gl_r22_nods_n_down <-t %>% filter(r22_nods_n.sig & r22_nods_n.ns_LFC < 0) %>% pu
 ################################################################################
 ################################## QC REPORTS ##################################
 ################################################################################
+setwd(dir_main)
 source("Quality Check.R")
-
-
-
+setwd(dir_main)
+source("GO Enrichment Analysis.R")
+setwd(dir_main)
+source("Final Figures Fig1.R")
+setwd(dir_main)
+source("Final Figures Fig2.R")
+setwd(dir_main)
+source("Suppletmental Datasets.R")
+setwd(dir_main)
+source("SupFig1.R")
+setwd(dir_main)
+source("NCR_analysis.R")
+setwd(dir_main)

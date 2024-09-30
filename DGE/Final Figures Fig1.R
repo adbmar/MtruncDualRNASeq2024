@@ -16,31 +16,6 @@ setwd(dir_main)
 source('Partially paired t test.R')
 setwd(dir_out)
 
-# response_to_rhizobia_label <- expression(atop(Log[2]~fold~change~of~normalized~read~count,
-#                                               across~rhizobia~strain~"( "["USDA1021"]^{underline("WSM1022")}~")"))
-# 
-# response_to_rhizobia_mag_label <- expression(atop(Magnitude~of~log[2]~fold~change~of~normalized~read~count,
-#                                                   across~rhizobia~strain~"( "["USDA1021"]^{underline("WSM1022")}~")"))
-# 
-# response_to_rhizobia_gall_label <- expression(atop(Log[2]~fold~change~of~normalized~read~count,
-#                                               across~rhizobia~strain~"in"~galls~"( "["USDA1021"]^{underline("WSM1022")}~")"))
-# 
-# response_to_rhizobia_nods_label <- expression(atop(Log[2]~fold~change~of~normalized~read~count,
-#                                               across~rhizobia~strain~"in"~nodules~"( "["USDA1021"]^{underline("WSM1022")}~")"))
-# 
-# response_to_rhizobia_root_label <- expression(atop(Log[2]~fold~change~of~normalized~read~count,
-#                                               across~rhizobia~strain~"in"~roots~"( "["USDA1021"]^{underline("WSM1022")}~")"))
-# 
-# 
-# response_to_parasite_label <- expression(atop(Log[2]~fold~change~of~normalized~read~count,
-#                                          across~parasite~status~"( "["uninfected hosts"]^{underline("infected hosts")}~")"))
-# 
-# response_to_parasite_em21_label <- expression(atop(Log[2]~fold~change~of~normalized~read~count,
-#                                               across~parasite~status~"in"~hosts~with~USDA1021~"( "["uninfected hosts"]^{underline("infected hosts")}~")"))
-# 
-# response_to_parasite_em22_label <- expression(atop(Log[2]~fold~change~of~normalized~read~count,
-#                                               across~parasite~status~"in"~hosts~with~WSM1022~"( "["uninfected hosts"]^{underline("infected hosts")}~")"))
-# 
 
 
 
@@ -59,60 +34,63 @@ response_to_parasite_em22_label <- expression(LFC~"( "["uninfected hosts"]^{unde
 
 
 
+
 gall_color <- "indianred1"
 nodule_color <- "dodgerblue"
 gall_and_nodule_color <- "mediumpurple1"
-USDA1021_color <- "cadetblue1"
-WSM1022_color <- "gold1"
+USDA1021_color <- "royalblue4"
+WSM1022_color <- "steelblue1"
+USDA1021_rhizo_color <- "royalblue4"
+WSM1022_rhizo_color <- "darkslategray1"
 USDA1021_and_WSM1022_color <- "seagreen3"
 gano_ME_color <- "mediumpurple3"
 gano_IE_color <- "olivedrab"
 gano_ME_and_IE_color <- "ivory2"
-nods_ME_color <- "orange"
-nods_IE_color <- "purple"
-nods_ME_and_IE_color <- "floralwhite"
+nods_ME_color <- gano_ME_color
+nods_IE_color <- gano_IE_color
+nods_ME_and_IE_color <- gano_ME_and_IE_color
 nematode_color <- "salmon4"
 
 ##################################
 
-t_gvn_up <- t.test.partial(paired = t %>% filter(med_gall_r.sigu | med_nodp_r.sigu) %>% select(med_gall_r.ns_LFC, med_nodp_r.ns_LFC) %>% drop_na(),
+t_gvn_up <- t.test.partial(paired = t %>% filter(med_gall_r.sigu | med_nodp_r.sigu) %>% select(med_gall_r.ns_LFC, med_nodp_r.ns_LFC) %>% drop_na() %>% as.data.frame(),
                            unpaired.x = t %>% filter(med_gall_r.sigu & !med_nodp_r.sigu) %>% select(med_gall_r.ns_LFC) %>% drop_na() %>% pull(med_gall_r.ns_LFC),
                            unpaired.y = t %>% filter(!med_gall_r.sigu & med_nodp_r.sigu) %>% select(med_nodp_r.ns_LFC) %>% drop_na() %>% pull(med_nodp_r.ns_LFC))$p.value
 
-t_mvn_up <- t.test.partial(paired = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter((med_gano_r.sig & ave > 0) | med_nodp_r.sigu) %>% select(ave, med_nodp_r.ns_LFC) %>% drop_na(),
+t_mvn_up <- t.test.partial(paired = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter((med_gano_r.sig & ave > 0) | med_nodp_r.sigu) %>% select(ave, med_nodp_r.ns_LFC) %>% drop_na() %>% as.data.frame(),
                            unpaired.x = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter((med_gano_r.sig & ave > 0) & !med_nodp_r.sigu) %>% select(ave) %>% drop_na() %>% pull(ave),
                            unpaired.y = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter(!(med_gano_r.sig & ave > 0) & med_nodp_r.sigu) %>% select(med_nodp_r.ns_LFC) %>% drop_na() %>% pull(med_nodp_r.ns_LFC))$p.value
 
-t_mvg_up <- t.test.partial(paired = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter((med_gano_r.sig & ave > 0) | med_gall_r.sigu) %>% select(ave, med_gall_r.ns_LFC) %>% drop_na(),
+t_mvg_up <- t.test.partial(paired = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter((med_gano_r.sig & ave > 0) | med_gall_r.sigu) %>% select(ave, med_gall_r.ns_LFC) %>% drop_na() %>% as.data.frame(),
                            unpaired.x = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter((med_gano_r.sig & ave > 0) & !med_gall_r.sigu) %>% select(ave) %>% drop_na() %>% pull(ave),
                            unpaired.y = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter(!(med_gano_r.sig & ave > 0) & med_gall_r.sigu) %>% select(med_gall_r.ns_LFC) %>% drop_na() %>% pull(med_gall_r.ns_LFC))$p.value
 
 
 
-t_gvn_down <- t.test.partial(paired = t %>% filter(med_gall_r.sigd | med_nodp_r.sigd) %>% select(med_gall_r.ns_LFC, med_nodp_r.ns_LFC) %>% drop_na(),
+t_gvn_down <- t.test.partial(paired = t %>% filter(med_gall_r.sigd | med_nodp_r.sigd) %>% select(med_gall_r.ns_LFC, med_nodp_r.ns_LFC) %>% drop_na() %>% as.data.frame(),
                              unpaired.x = t %>% filter(med_gall_r.sigd & !med_nodp_r.sigd) %>% select(med_gall_r.ns_LFC) %>% drop_na() %>% pull(med_gall_r.ns_LFC),
                              unpaired.y = t %>% filter(!med_gall_r.sigd & med_nodp_r.sigd) %>% select(med_nodp_r.ns_LFC) %>% drop_na() %>% pull(med_nodp_r.ns_LFC))$p.value
 
-t_mvn_down <- t.test.partial(paired = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter((med_gano_r.sig & ave < 0) | med_nodp_r.sigd) %>% select(ave, med_nodp_r.ns_LFC) %>% drop_na(),
+t_mvn_down <- t.test.partial(paired = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter((med_gano_r.sig & ave < 0) | med_nodp_r.sigd) %>% select(ave, med_nodp_r.ns_LFC) %>% drop_na() %>% as.data.frame(),
                              unpaired.x = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter((med_gano_r.sig & ave < 0) & !med_nodp_r.sigd) %>% select(ave) %>% drop_na() %>% pull(ave),
                              unpaired.y = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter(!(med_gano_r.sig & ave < 0) & med_nodp_r.sigd) %>% select(med_nodp_r.ns_LFC) %>% drop_na() %>% pull(med_nodp_r.ns_LFC))$p.value
 
-t_mvg_down <- t.test.partial(paired = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter((med_gano_r.sig & ave < 0) | med_gall_r.sigd) %>% select(ave, med_gall_r.ns_LFC) %>% drop_na(),
+t_mvg_down <- t.test.partial(paired = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter((med_gano_r.sig & ave < 0) | med_gall_r.sigd) %>% select(ave, med_gall_r.ns_LFC) %>% drop_na() %>% as.data.frame(),
                              unpaired.x = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter((med_gano_r.sig & ave < 0) & !med_gall_r.sigd) %>% select(ave) %>% drop_na() %>% pull(ave),
                              unpaired.y = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter(!(med_gano_r.sig & ave < 0) & med_gall_r.sigd) %>% select(med_gall_r.ns_LFC) %>% drop_na() %>% pull(med_gall_r.ns_LFC))$p.value
 
 
 
 
-t_gvn_mag  <- t.test.partial(paired = t %>% filter(med_gall_r.sigd | med_nodp_r.sigd) %>% select(med_gall_r.ns_LFC, med_nodp_r.ns_LFC) %>% drop_na() %>% abs(),
+t_gvn_mag  <- t.test.partial(paired = t %>% filter(med_gall_r.sigd | med_nodp_r.sigd) %>% select(med_gall_r.ns_LFC, med_nodp_r.ns_LFC) %>% drop_na() %>% abs() %>% as.data.frame(),
                              unpaired.x = t %>% filter(med_gall_r.sigd & !med_nodp_r.sigd) %>% select(med_gall_r.ns_LFC) %>% drop_na() %>% abs() %>% pull(med_gall_r.ns_LFC),
                              unpaired.y = t %>% filter(!med_gall_r.sigd & med_nodp_r.sigd) %>% select(med_nodp_r.ns_LFC) %>% drop_na() %>% abs() %>% pull(med_nodp_r.ns_LFC))$p.value
 
-t_mvn_mag <- t.test.partial(paired = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter(med_gano_r.sig | med_nodp_r.sig) %>% select(ave, med_nodp_r.ns_LFC) %>% drop_na() %>% abs(),
+t_mvn_mag <- t.test.partial(paired = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter(med_gano_r.sig | med_nodp_r.sig) %>% select(ave, med_nodp_r.ns_LFC) %>% drop_na() %>% abs() %>% as.data.frame(),
                             unpaired.x = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter(med_gano_r.sig & !med_nodp_r.sig) %>% select(ave) %>% drop_na() %>% pull(ave) %>% abs(),
                             unpaired.y = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter(!med_gano_r.sig & med_nodp_r.sig) %>% select(med_nodp_r.ns_LFC) %>% drop_na() %>% pull(med_nodp_r.ns_LFC) %>% abs())$p.value
 
-t_mvg_mag <- t.test.partial(paired = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter(med_gano_r.sig | med_gall_r.sig) %>% select(ave, med_gall_r.ns_LFC) %>% drop_na() %>% abs(),
+t_mvg_mag <- t.test.partial(paired = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter(med_gano_r.sig | med_gall_r.sig) %>% select(ave, med_gall_r.ns_LFC) %>% drop_na() %>% abs() %>% as.data.frame(),
                             unpaired.x = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter(med_gano_r.sig & !med_gall_r.sigd) %>% select(ave) %>% drop_na() %>% pull(ave) %>% abs(),
                             unpaired.y = t %>% mutate(ave = (med_gano_i_gall_r.ns_LFC + med_gano_i_nodp_r.ns_LFC)/2) %>% filter(!med_gano_r.sig & med_gall_r.sigd) %>% select(med_gall_r.ns_LFC) %>% drop_na() %>% pull(med_gall_r.ns_LFC) %>% abs())$p.value
 
@@ -209,12 +187,12 @@ f1c <- ggplot(f1c_table) +
   ggplot2::annotate("rect", xmin = 0, xmax = 9, ymin = 1.5, ymax = 1.51, alpha = 0.4, color = "black") +
   ggplot2::annotate("rect", xmin = 0, xmax = 9, ymin = 2.5, ymax = 2.51, alpha = 0.4, color = "gray") +
   
-  ggplot2::annotate("text", size = 3, x = 0, y = 0.8, hjust = 1, label = paste0("n = ", length(f1c_table %>% filter(subset == f1c_subset_all) %>% filter(test == "Galls")   %>% pull(LFC)), " "), color = gall_color)   +
-  ggplot2::annotate("text", size = 3, x = 0, y = 1.2, hjust = 1, label = paste0("n = ", length(f1c_table %>% filter(subset == f1c_subset_all) %>% filter(test == "Nodules") %>% pull(LFC)), " "), color = nodule_color) +
-  ggplot2::annotate("text", size = 3, x = 0, y = 1.8, hjust = 1, label = paste0("n = ", length(f1c_table %>% filter(subset == f1c_subset_21)  %>% filter(test == "Galls")   %>% pull(LFC)), " "), color = gall_color)   +
-  ggplot2::annotate("text", size = 3, x = 0, y = 2.2, hjust = 1, label = paste0("n = ", length(f1c_table %>% filter(subset == f1c_subset_21)  %>% filter(test == "Nodules") %>% pull(LFC)), " "), color = nodule_color) +
-  ggplot2::annotate("text", size = 3, x = 0, y = 2.8, hjust = 1, label = paste0("n = ", length(f1c_table %>% filter(subset == f1c_subset_22)  %>% filter(test == "Galls")   %>% pull(LFC)), " "), color = gall_color)   +
-  ggplot2::annotate("text", size = 3, x = 0, y = 3.2, hjust = 1, label = paste0("n = ", length(f1c_table %>% filter(subset == f1c_subset_22)  %>% filter(test == "Nodules") %>% pull(LFC)), " "), color = nodule_color) +
+  ggplot2::annotate("text", size = 3, x = 0, y = 0.8, hjust = 1, label = paste0("n=", length(f1c_table %>% filter(subset == f1c_subset_all) %>% filter(test == "Galls")   %>% pull(LFC)), " "), color = gall_color)   +
+  ggplot2::annotate("text", size = 3, x = 0, y = 1.2, hjust = 1, label = paste0("n=", length(f1c_table %>% filter(subset == f1c_subset_all) %>% filter(test == "Nodules") %>% pull(LFC)), " "), color = nodule_color) +
+  ggplot2::annotate("text", size = 3, x = 0, y = 1.8, hjust = 1, label = paste0("n=", length(f1c_table %>% filter(subset == f1c_subset_21)  %>% filter(test == "Galls")   %>% pull(LFC)), " "), color = gall_color)   +
+  ggplot2::annotate("text", size = 3, x = 0, y = 2.2, hjust = 1, label = paste0("n=", length(f1c_table %>% filter(subset == f1c_subset_21)  %>% filter(test == "Nodules") %>% pull(LFC)), " "), color = nodule_color) +
+  ggplot2::annotate("text", size = 3, x = 0, y = 2.8, hjust = 1, label = paste0("n=", length(f1c_table %>% filter(subset == f1c_subset_22)  %>% filter(test == "Galls")   %>% pull(LFC)), " "), color = gall_color)   +
+  ggplot2::annotate("text", size = 3, x = 0, y = 3.2, hjust = 1, label = paste0("n=", length(f1c_table %>% filter(subset == f1c_subset_22)  %>% filter(test == "Nodules") %>% pull(LFC)), " "), color = nodule_color) +
 
   geom_segment(aes(x = 0.7,   xend = 0.7,   y = 1.2, yend = 0.8), color = "black") +
   geom_segment(aes(x = 0.7,   xend = 0.7,   y = 2.2, yend = 1.8), color = "black") +
@@ -322,12 +300,13 @@ f1d_annotated <- f1d_main +
         legend.position = c(.225,.9),
         legend.spacing.y = unit(0.005, "in")
   ) +
-  ggplot2::annotate("text", size = 3, x = 3.9, y = -Inf, hjust = 0.5, vjust = 0.45, color = gano_ME_color , label = "Rhizobia\nmain effect\n\n") +
-  ggplot2::annotate("text", size = 3, x = 7,   y = -Inf, hjust = 0.5, vjust = 0.45, color = gano_IE_color , label = "Rhizobia x\norgan interaction\n\n")
+  ggplot2::annotate("text", size = 3, x = 4, y = -Inf, hjust = 0.5, vjust = 0.45, color = gano_ME_color , label = "Rhizobia\nmain effect\n\n") +
+  ggplot2::annotate("text", size = 3, x = 6,   y = -Inf, hjust = 0.5, vjust = 0.45, color = gano_IE_color , label = "Rhizobia x\norgan interaction\n\n") +
+  coord_cartesian(clip = "off")
 
 
   
-f1d <- ggdraw() + draw_plot(f1d_annotated) + draw_plot(f1d_inset, x = 0.725, y = 0.2, width = 0.2, height = 0.2)
+f1d <- ggdraw() + draw_plot(f1d_annotated) + draw_plot(f1d_inset, x = 0.775, y = 0.225, width = 0.2, height = 0.2)
 # f1d
 
 
@@ -395,8 +374,8 @@ f1e_main <- ggplot(f1e_table) + aes(x = rootLFC, y = gallLFC,
 # f1e_main
 
 f1e_inset <- as.ggplot(plot(euler(list(
-  "garo_r" = gl_med_garo_r[gl_med_garo_r %in% setdiff(gl_med_garo_r, gl_med_garo_i)],
-  "garo_i" = gl_med_garo_i[gl_med_garo_i %in% setdiff(gl_med_garo_i, gl_med_garo_r)])), 
+  "garo_r" = unique(gl_med_garo_r[gl_med_garo_r %in% setdiff(gl_med_garo_r, gl_med_garo_i)]),
+  "garo_i" = unique(gl_med_garo_i[gl_med_garo_i %in% setdiff(gl_med_garo_i, gl_med_garo_r)]))), 
   quantities = list(type = "percent",cex = 0.75), labels = FALSE,
   fill = c(gano_ME_color, gano_IE_color, gano_ME_and_IE_color)))
 # f1e_inset
@@ -418,12 +397,13 @@ f1e_annotated <- f1e_main + geom_text(data = f1e_annotation,
   theme(legend.background = element_rect(fill = NA, color = NA),
         legend.position = c(.225,.9),
         legend.spacing.y = unit(0.005, "in")) +
-  ggplot2::annotate("text", size = 3, x = 3.9, y = -Inf, hjust = 0.5, vjust = 0.45, color = gano_ME_color , label = "Rhizobia\nmain effect\n\n") +
-  ggplot2::annotate("text", size = 3, x = 6.3, y = -Inf, hjust = 0.5, vjust = 0.45, color = gano_IE_color , label = "Rhizobia x\norgan interaction\n\n")
+  ggplot2::annotate("text", size = 3, x = 4, y = -Inf, hjust = 0.5, vjust = 0.45, color = gano_ME_color , label = "Rhizobia\nmain effect\n\n") +
+  ggplot2::annotate("text", size = 3, x = 6.75, y = -Inf, hjust = 0.5, vjust = 0.45, color = gano_IE_color , label = "Rhizobia x\norgan interaction\n\n") +
+  coord_cartesian(clip = "off")
   
 # f1e_main
 
-f1e <- ggdraw() + draw_plot(f1e_annotated) + draw_plot(f1e_inset, x = 0.725, y = 0.2, width = 0.2, height = 0.2)
+f1e <- ggdraw() + draw_plot(f1e_annotated) + draw_plot(f1e_inset, x = 0.725, y = 0.225, width = 0.2, height = 0.2)
 # f1e
 
 
@@ -461,23 +441,29 @@ stripes = c(gano_IE_color, gano_IE_color, gano_IE_color, gano_ME_color, gano_ME_
 
 
 
-f1a <- f1a + ggtitle("a\n") + 
+f1a <- f1a + ggtitle("a") + 
   theme(plot.title = element_text(size = 18, hjust = 0), plot.title.position = "plot") +
-  theme(plot.margin = margin(b=5))
-f1b <- f1b + ggtitle("b\n") + 
+  theme(plot.margin = margin(b=0, r=10)) +
+  theme(rect = element_rect(fill = "transparent"))
+f1b <- f1b + ggtitle("b") + 
   theme(plot.title = element_text(size = 18, hjust = 0), plot.title.position = "plot") +
-  theme(plot.margin = margin(b=5, t=5))
-f1c <- f1c + ggtitle("c\n") + 
+  theme(plot.margin = margin(b=0, t=0, r=10)) +
+  theme(rect = element_rect(fill = "transparent"))
+f1c <- f1c + ggtitle("c") + 
   theme(plot.title = element_text(size = 18, hjust = 0), plot.title.position = "plot") +
-  theme(plot.margin = margin(b=5, t=5))
-f1d <- f1d + ggtitle("d\n") + 
+  theme(plot.margin = margin(l=10, b=10)) +
+  theme(rect = element_rect(fill = "transparent"))
+f1d <- f1d + ggtitle("d") + 
   theme(plot.title = element_text(size = 18, hjust = 0), plot.title.position = "plot") +
-  theme(plot.margin = margin(b=5, t=5))
-f1e <- f1e + ggtitle("e\n") + 
+  theme(plot.margin = margin(r=10, t=10)) +
+  theme(rect = element_rect(fill = "transparent"))
+f1e <- f1e + ggtitle("e") + 
   theme(plot.title = element_text(size = 18, hjust = 0), plot.title.position = "plot") +
-  theme(plot.margin = margin(b=5, t=5))
-f1f <- as.ggplot(f1f) + ggtitle("f\n") + 
-  theme(plot.title = element_text(size = 18, hjust = 0), plot.title.position = "plot")
+  theme(plot.margin = margin(l=10, t=10, r=10)) +
+  theme(rect = element_rect(fill = "transparent"))
+f1f <- as.ggplot(f1f) + ggtitle("f") + 
+  theme(plot.title = element_text(size = 18, hjust = 0), plot.title.position = "plot") +
+  theme(rect = element_rect(fill = "transparent"))
 
 
 f1 <- as.ggplot(
@@ -512,8 +498,16 @@ f1_red_square <- as.ggplot(grid.arrange(grobs = list(f1a, f1b, f1c, f1d, f1e),
                                                               c(4,5))
 )) + theme(panel.background = element_rect(fill = 'white', color = 'white'))
 
+f1_red_long <- as.ggplot(grid.arrange(grobs = list(f1a, f1b, f1c, f1d, f1e),
+                                        row = 5,
+                                        cols = 1,
+                                        heights = c(2,2,3,5,5)
+)) + theme(panel.background = element_rect(fill = 'white', color = 'white'))
+
 setwd(dir_out)
 ggsave(filename = "Figure1.png", plot = f1, device = "png", width = 2048, height = 8192, units = "px")
 ggsave(filename = "Figure1_reduced.png", plot = f1_red, device = "png", width = 2048, height = 5760, units = "px")
-ggsave(filename = "Figure1_reduced_long.png", plot = f1_red_v2, device = "png", height = 2048, width = 5760, units = "px")
-ggsave(filename = "Figure1_reduced_squ.png", plot = f1_red_square, device = "png", height = 3072, width = 4096, units = "px", scale = 0.8, limitsize = FALSE)
+ggsave(filename = "Figure1_reduced_wide.png", plot = f1_red_v2, device = "png", height = 3072, width = 5760, units = "px")
+ggsave(filename = "Figure1_reduced_squ.png", plot = f1_red_square, device = "png", height = 2730, width = 4096, units = "px", scale = 0.8, limitsize = FALSE)
+ggsave(filename = "Figure1_reduced_long.png", plot = f1_red_long, device = "png", height = 5760, width = 2048, units = "px", scale = 0.85)
+

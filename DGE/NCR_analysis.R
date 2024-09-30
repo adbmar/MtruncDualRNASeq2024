@@ -1,4 +1,5 @@
 library(eulerr)
+library(ComplexUpset)
 
 NCR_list <- read.csv(file.path(dir_medic, "MtrunA17r5.0-ANR-EGN-r1.9.b2g.gaf"), sep="\t", skip = 4, header = FALSE) %>%
   filter(str_detect(V10, "(NCR)")) %>% pull(V2)
@@ -168,3 +169,96 @@ deleted_genes_from_Shen_2023 <- c(
 "MtrunA17_Chr3g0083261"
 )
 t %>% filter(gene %in% NCR_list) %>% filter(med_nods_r21_n.sig | med_nods_i.sig | med_nods_r.sig | med_nodm_r.sig | med_nodp_r.sig | med_nods_n.sig | med_nods_r22_n.sig | med_nods_r21_n.sig | med_nods_i.sig) %>% filter(gene %in% deleted_genes_from_Shen_2023) %>% select(gene, starts_with("med") & ends_with(".sig"), legoo_acronym, legoo_description, legoo_publication)
+
+
+ggplot(t %>% filter(NCR)) +
+geom_point(aes(x = med_nodp_r.ns_LFC, y = med_nods_r21_n.ns_LFC - med_nods_r22_n.ns_LFC))
+
+ggplot(t %>% filter(NCR)) +
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0) +
+  geom_point(aes(y = med_nods_r21_n.ns_LFC, x= med_nods_r22_n.ns_LFC,
+                 fill = interaction(med_nods_r.sig, med_nods_i.sig),
+                 size = med_nodp_r.ns_LFC),
+                 shape = 21) + theme_classic() +
+  scale_fill_manual(name = "Effects",
+                    values = c("FALSE.FALSE" = "gray",
+                               "TRUE.FALSE" = "purple",
+                               "FALSE.TRUE" = "green"))
+
+             
+ggplot(t %>% filter(NCR)) +
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0) +
+  geom_point(aes(y = med_nods_r21_n.ns_LFC, x= med_nods_r22_n.ns_LFC,
+                 fill = interaction(med_nods_r.sig, med_nods_i.sig),
+                 color = med_nodp_r.ns_LFC)) + theme_classic()
+  
+  
+ggplot(t %>% filter(NCR) %>% filter(med_nods_r.ns_LFC | med_nods_i.sig)) +
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0) +
+  geom_point(aes(y = med_nods_r21_n.ns_LFC, x= med_nods_r22_n.ns_LFC,
+                 fill = interaction(med_nods_r.sig, med_nods_i.sig)),
+             shape = 21) + theme_classic() +
+  scale_fill_manual(name = "Effects",
+    values = c("FALSE.FALSE" = "gray",
+                               "TRUE.FALSE" = "purple",
+                               "FALSE.TRUE" = "green"),
+                     labels = c("FALSE.FALSE" = "No effect",
+                               "TRUE.FALSE" = "Main effect of nematode",
+                               "FALSE.TRUE" = "Nema X Rhizo effect"))
+
+ggplot(t %>% filter(NCR) %>% filter(med_nods_r.ns_LFC | med_nods_i.sig)) +
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0) +
+  geom_segment(aes(x = med_nods_r22_n.ns_LFC, xend = med_nods_r22_n.ns_LFC,
+                     y = med_nods_r21_n.ns_LFC, yend = med_nodp_r.ns_LFC,
+                   color = med_nodp_r.sig),
+               alpha = 0.4) +
+  geom_point(aes(y = med_nods_r21_n.ns_LFC, x= med_nods_r22_n.ns_LFC,
+                 fill = interaction(med_nods_r.sig, med_nods_i.sig)),
+             shape = 21, color = "black") + theme_classic() +
+  scale_fill_manual(name = "Effects",
+                    values = c("FALSE.FALSE" = "gray",
+                               "TRUE.FALSE" = "purple",
+                               "FALSE.TRUE" = "green"),
+                    labels = c("FALSE.FALSE" = "No effect",
+                               "TRUE.FALSE" = "Main effect of nematode",
+                               "FALSE.TRUE" = "Nema X Rhizo effect"))
+
+
+
+ggplot(t %>% filter(NCR) %>% filter(med_nods_r.sig | med_nods_i.sig | med_nodp_r.sig | med_nods_r21_n.sig | med_nods_r22_n.sig | med_nods_n.sig)) +
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0) +
+  geom_point(aes(y = med_nods_r21_n.ns_LFC, x= med_nods_r22_n.ns_LFC,
+                 fill = interaction(med_nods_r.sig, med_nods_i.sig)),
+             shape = 21, color = "black") + theme_classic() +
+  scale_fill_manual(name = "Effects",
+                    values = c("FALSE.FALSE" = "gray",
+                               "TRUE.FALSE" = "purple",
+                               "FALSE.TRUE" = "green"))
+
+ggplot(t %>% filter(NCR) %>% filter(med_nods_r.sig | med_nods_i.sig | med_nodp_r.sig | med_nods_r21_n.sig | med_nods_r22_n.sig | med_nods_n.sig)) +
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0) +
+  geom_point(aes(y = med_nodp_r.ns_LFC, x= med_nods_r22_n.ns_LFC,
+                 fill = interaction(med_nodp_r.sig, med_nods_r22_n.sig)),
+             shape = 21, alpha = 0.7, color = "black") + theme_classic()
+
+ggplot(t %>% filter(NCR) %>% filter(med_nods_r.sig | med_nods_i.sig | med_nodp_r.sig | med_nods_r21_n.sig | med_nods_r22_n.sig | med_nods_n.sig)) +
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0) +
+  geom_point(aes(y = med_nodp_r.ns_LFC, x= med_nods_r21_n.ns_LFC,
+                 fill = interaction(med_nodp_r.sig, med_nods_r22_n.sig)),
+             shape = 21, alpha = 0.7, color = "black") + theme_classic()
+
+t %>% filter(NCR) %>%
+  mutate(NCR_nodp_r = if_else(NCR, if_else(med_nodp_r.sig, med_nodp_r.ns_LFC, NA), NA),
+         NCR_nods_r = if_else(NCR, if_else(med_nods_r.sig, med_nods_r.ns_LFC, NA), NA),
+         NCR_nods_i = if_else(NCR, if_else(med_nods_i.sig, med_nods_i.ns_LFC, NA), NA),
+         NCR_nods_n = if_else(NCR, if_else(med_nods_n.sig, med_nods_n.ns_LFC, NA), NA),
+         NCR_nods_r21_n = if_else(NCR, if_else(med_nods_r21_n.sig, med_nods_r21_n.ns_LFC, NA), NA),
+         NCR_nods_r22_n = if_else(NCR, if_else(med_nods_r22_n.sig, med_nods_r22_n.ns_LFC, NA), NA)) %>% filter(organism == "Medicago" & NCR) %>%
+  select(NCR_nods_r21_n, NCR_nods_r22_n, NCR_nodp_r) %>% rowwise() %>%
+  mutate(sum = sum(is.na(NCR_nods_r21_n), is.na(NCR_nods_r22_n), is.na(NCR_nodp_r))) %>%
+  group_by(sum) %>% summarize(count = n())
+
+cor(t %>% filter(NCR) %>% filter(med_nods_n.sig | med_nods_r.sig | med_nods_i.sig) %>% select(med_nods_r21_n.ns_LFC, med_nods_r22_n.ns_LFC, med_nods_r.ns_LFC, med_nodp_r.ns_LFC, med_nods_n.ns_LFC) %>% drop_na())
+
+cor(t %>% select(med_nodp_r.ns_LFC, med_nods_r21_n.ns_LFC, med_nods_r22_n.ns_LFC) %>% drop_na())                    
+cor(t %>% filter(NCR) %>% select(med_nodp_r.ns_LFC, med_nods_r21_n.ns_LFC, med_nods_r22_n.ns_LFC) %>% drop_na())                    

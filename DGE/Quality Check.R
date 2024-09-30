@@ -41,7 +41,7 @@ dataset_quality_check_plotting <- function(dds, pdf_title, nema_factor = FALSE){
     geom_hline(yintercept = 0, color = "dark gray") + geom_vline(xintercept = 0, color = "dark gray") +
     aes(PC1, PC2, fill = nema, shape = rhizo, color = tissue, stroke = 2, alpha = 0.8) + 
     scale_color_manual(values = c("Root" = "tan", "Nodule" = "blue", "Gall" = "red")) +
-    scale_shape_manual(values = c("Em1021" = 23, "Em1022" = 21)) + 
+    scale_shape_manual(values = c("Em1021" = 25, "Em1022" = 21)) + 
     geom_point(size=3) + 
     ggtitle("PCA Plot") +
     xlab(paste("PC1: ", round(attr(PCAdata, "percentVar")[1]*100, 3), "% variance")) + 
@@ -68,7 +68,7 @@ dataset_quality_check_plotting <- function(dds, pdf_title, nema_factor = FALSE){
     geom_hline(yintercept = 0, color = "dark gray") + geom_vline(xintercept = 0, color = "dark gray") +
     aes(X1, X2, fill = nema, shape = rhizo, color = tissue, stroke = 3) + 
     scale_color_manual(values = c("Root" = "tan", "Nodule" = "blue", "Gall" = "red")) +
-    scale_shape_manual(values = c("Em1021" = 23, "Em1022" = 21)) + 
+    scale_shape_manual(values = c("Em1021" = 25, "Em1022" = 21)) + 
     geom_point(size=3) + 
     ggtitle("Euclidian MDS plot")+
     theme_classic()
@@ -92,7 +92,7 @@ dataset_quality_check_plotting <- function(dds, pdf_title, nema_factor = FALSE){
     aes(X1, X2,  fill = nema, shape = rhizo, color = tissue, stroke = 3) + 
     scale_fill_manual(values = c("Nema" = "dark red", "No_Nema" = "white")) +
     scale_color_manual(values = c("Root" = "tan", "Nodule" = "blue", "Gall" = "red")) +
-    scale_shape_manual(values = c("Em1021" = 23, "Em1022" = 21)) +
+    scale_shape_manual(values = c("Em1021" = 25, "Em1022" = 21)) +
     geom_point(size=3) +  
     ggtitle("Poison MDS plot")+
     theme_classic()
@@ -135,7 +135,8 @@ dataset_quality_check_plotting <- function(dds, pdf_title, nema_factor = FALSE){
   pheatmap(mat, annotation_col=df, main = "Gene clustering of 1000 most variable genes")
   
   #Closing pdf file
-  dev.off()
+  try(dev.off(), silent = TRUE)
+  try(dev.off(), silent = TRUE)
   print("Dataset quality check: done")
   setwd(dir_main)
 }
