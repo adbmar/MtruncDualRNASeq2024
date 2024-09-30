@@ -1,7 +1,7 @@
 # MtruncDualRNASeq2024
 Data and code repository for dual RNAseq project with Medicago truncatula
 
-This repository holds scripts and data associated with the study found at ___(in review)__.
+This repository holds scripts and data associated with the study found at https://doi.org/10.1101/2024.07.15.603596.
 
 The snakemake directory contains the script needed to process data that must be downloaded from the Sequence Read Archive. The script is a snakemake script that performs the bioinformatic analyses outlined in the publication.
 - Download the data associated with BioProject: PRJNA1090526 on the Sequence Read Archive and put these files in a directory within snakemake entitled "rawReads"
@@ -20,6 +20,8 @@ The DGE directory contains all the scripts and data necessary to take the output
 - GO Enrichment Analysis.R and GO Enrichment Analysis with Parents.R are two scripts that run Gene Ontology enrichment analyses and output the results to the out directory. These scripts will create a EnrichmentDatabase directory that will house SQL databases needed to perform the analyses.
 - Utility Scripts directory contains various utility scripts that may be used for data exploration. Many of these scripts require running the PrimaryAnalysis.R script first.
 
-**IMPORTANT NOT FOR DGE PRIMARYANALYSIS.R SCRIPT:** The file path at line 39 must be edited to appropriately identify where the DGE directory with all of the contents outlined above is found on the local device where the script is run
+The Pheno diretory contains all the scripts and data necessary to do the phenotypic analysis outlined in the paper.
+
+**IMPORTANT NOT FOR DGE PRIMARYANALYSIS.R SCRIPT:** The script is designed to operate based on the directory where PrimaryAnalysis.R is saved in. If this does not work properly you can override this feature by simply uncommenting line 90 and manually setting the directory to use for the main directory.
 
 The NCBI Ensifer Master zip file contains the scripts necessary to perform the similarity analysis. Thanks to Dr. Chang-Yu Chang for this script.
