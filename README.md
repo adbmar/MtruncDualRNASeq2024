@@ -3,6 +3,8 @@ Data and code repository for dual RNAseq project with Medicago truncatula
 
 This repository holds scripts and data associated with the study found at https://doi.org/10.1101/2024.07.15.603596.
 
+Please note that due to limitations set by GitHub, the annotation.gtf files in the Medicago and Nema directories within the DGE directory were not able to be uploaded. After downloading this repository locally, these annotation files must be downloaded from the sources specified in the manuscript and placed into these directories manually and renamed "annotation.gtf" before running any DGE scripts.
+
 The snakemake directory contains the script needed to process data that must be downloaded from the Sequence Read Archive. The script is a snakemake script that performs the bioinformatic analyses outlined in the publication.
 - Download the data associated with BioProject: PRJNA1090526 on the Sequence Read Archive and put these files in a directory within snakemake entitled "rawReads"
 - The adapter directory contains the adapter sequences needed for Trimmomatic
